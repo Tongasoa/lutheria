@@ -8,8 +8,10 @@ import asyncio
 import logging
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
 
 from server.asr import build_asr
 from server.auth import is_valid_mic_token
@@ -48,25 +50,26 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        """Démarre le pipeline au boot (modèles chauds avant le premier client)."""
+        from server.vad_model import get_silero_probas
+
+        app.state.segment_queue = asyncio.Queue(maxsize=SEGMENT_QUEUE_MAXSIZE)
+        app.state.segmenter = vad_factory(settings, get_silero_probas())
+        app.state.asr = asr_factory(settings)
+        app.state.mt = mt_factory(settings)
+        task = asyncio.create_task(pipeline_worker())
+        app.state._worker_task = task
         yield
-        if app.state._worker_task is not None:
-            app.state._worker_task.cancel()
+        task.cancel()
 
     app = FastAPI(title="Lutheria", version="0.1.0", lifespan=lifespan)
     hub = BroadcastHub()
     app.state.settings = settings
     app.state.hub = hub
     app.state.producer = None
-    app.state.segment_queue: asyncio.Queue[Segment] | None = None
-    app.state.segmenter: VADSegmenter | None = None
-    app.state.asr = None
-    app.state.mt = None
-    app.state._worker_task: asyncio.Task | None = None
 
     async def enqueue_segment(segment: Segment) -> None:
         q = app.state.segment_queue
-        if q is None:
-            return
         if q.full():
             q.get_nowait()  # drop-oldest : on privilégie l'audio récent
         q.put_nowait(segment)
@@ -85,7 +88,7 @@ def create_app(
                     continue  # segment vide (faux positif VAD) : rien à diffuser
                 ts = time.time()
                 text_mg = transcription.text
-                await hub.publish(
+                await app.state.hub.publish(
                     {
                         "id": segment_id,
                         "ts": ts,
@@ -101,7 +104,7 @@ def create_app(
                     # la traduction échoue : la ligne reste en `partial`
                     logger.exception("échec MT sur le segment %d", segment_id)
                     continue
-                await hub.publish(
+                await app.state.hub.publish(
                     {
                         "id": segment_id,
                         "ts": ts,
@@ -116,16 +119,6 @@ def create_app(
                 # un échec ASR ne doit jamais tuer le pipeline ni couper le flux
                 logger.exception("échec ASR sur le segment %d", segment_id)
 
-    async def ensure_pipeline() -> None:
-        if app.state.segment_queue is None:
-            from server.vad_model import get_silero_probas
-
-            app.state.segment_queue = asyncio.Queue(maxsize=SEGMENT_QUEUE_MAXSIZE)
-            app.state.segmenter = vad_factory(settings, get_silero_probas())
-            app.state.asr = asr_factory(settings)
-            app.state.mt = mt_factory(settings)
-            app.state._worker_task = asyncio.create_task(pipeline_worker())
-
     @app.websocket("/ws/mic")
     async def ws_mic(ws: WebSocket) -> None:
         if not is_valid_mic_token(ws.query_params.get("token"), settings.mic_token):
@@ -136,7 +129,6 @@ def create_app(
             return
         await ws.accept()
         app.state.producer = ws
-        await ensure_pipeline()
         segmenter = app.state.segmenter
         try:
             while True:
@@ -170,6 +162,11 @@ def create_app(
                     break
         finally:
             hub.remove_listener(ws)
+
+    # pages clients (mic.html / listen.html) servies après les routes WS
+    client_dir = Path(__file__).resolve().parent.parent / "client"
+    if client_dir.is_dir():
+        app.mount("/", StaticFiles(directory=client_dir, html=True), name="client")
 
     return app
 

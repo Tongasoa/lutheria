@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lutheria — Traduction</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+    header { display: flex; justify-content: space-between; align-items: baseline; }
+    h1 { font-size: 1.2rem; }
+    #status.ok { color: #1a7f37; font-weight: 600; font-size: .85rem; }
+    #status.err { color: #c9302c; font-weight: 600; font-size: .85rem; }
+    ul { list-style: none; padding: 0; }
+    li { border-bottom: 1px solid #eee; padding: .6rem 0; }
+    .fr { font-size: 1.05rem; }
+    .mg { color: #777; font-size: .85rem; font-style: italic; }
+    li:only-child .mg { display: inline; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Lutheria — traduction en direct</h1>
+    <span id="status"></span>
+  </header>
+  <ul id="lines"></ul>
+  <script src="listen.js"></script>
+</body>
+</html>
