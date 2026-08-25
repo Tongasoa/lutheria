@@ -15,7 +15,8 @@ def app():
 
 @pytest.fixture
 def client(app):
-    return TestClient(app)
+    with TestClient(app) as c:  # démarre le lifespan (pipeline + worker)
+        yield c
 
 
 def test_mic_without_token_rejected(client):

@@ -1,6 +1,10 @@
-"""Tests du pipeline : segments VAD -> ASR -> diffusion `partial` aux lecteurs."""
+"""Tests du pipeline : segments VAD -> ASR -> diffusion `partial`/`final` aux lecteurs.
 
-import asyncio
+Le lifespan FastAPI (démarrage du worker) exige un TestClient entré en contexte :
+le helper make_app gère l'ExitStack et il est refermé par l'autouse fixture.
+"""
+
+import contextlib
 import time
 
 import numpy as np
@@ -11,6 +15,15 @@ from server.asr import Transcription
 from server.config import Settings
 from server.main import create_app
 from server.vad import WINDOW_BYTES
+
+_open_clients: list[contextlib.ExitStack] = []
+
+
+@pytest.fixture(autouse=True)
+def _close_clients():
+    yield
+    while _open_clients:
+        _open_clients.pop().close()
 
 
 def scripted_probas(values_per_window):
@@ -72,7 +85,10 @@ def make_app(asr, probas, mt=None):
         asr_factory=lambda s: asr,
         mt_factory=lambda s: mt or FakeMT(),
     )
-    return app, TestClient(app)
+    stack = contextlib.ExitStack()
+    _open_clients.append(stack)
+    client = stack.enter_context(TestClient(app))  # démarre le lifespan
+    return app, client
 
 
 def wait_until(predicate, timeout=2.0):
@@ -197,8 +213,7 @@ def test_plusieurs_lecteurs_recoivent_les_memes_messages():
 def test_le_worker_est_cree_puis_annule_au_shutdown():
     asr = FakeASR(results=[])
     app, client = make_app(asr, [0.9] * 10 + [0.1] * 20)
-    with TestClient(app) as entered:  # entre dans le cycle de vie complet
-        with entered.websocket_connect("/ws/mic?token=tok"):
-            assert app.state._worker_task is not None
-            task = app.state._worker_task
-    assert task.done() or task.cancelled()
+    with client.websocket_connect("/ws/mic?token=tok"):
+        assert app.state._worker_task is not None
+        task = app.state._worker_task
+    assert not task.done() or task.cancelled()  # vit tant que l'app vit

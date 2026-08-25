@@ -1,12 +1,24 @@
 """Tests du branchement VAD dans /ws/mic observé à travers les appels à l'ASR."""
 
+import contextlib
 import time
 
 import numpy as np
+import pytest
+from fastapi.testclient import TestClient
 
 from server.config import Settings
 from server.main import create_app
 from server.vad import WINDOW_BYTES, VADSegmenter
+
+_open_clients: list[contextlib.ExitStack] = []
+
+
+@pytest.fixture(autouse=True)
+def _close_clients():
+    yield
+    while _open_clients:
+        _open_clients.pop().close()
 
 
 def scripted_probas(values_per_window):
@@ -53,9 +65,10 @@ def make_app(asr, probas=None):
     settings = Settings(mic_token="tok", _env_file=None)
     factory = make_vad_factory(probas) if probas else (lambda s, p=None: VADSegmenter(proba_fn=lambda w: 0.9, max_segment_seconds=1))
     app = create_app(settings, vad_factory=factory, asr_factory=lambda s: asr)
-    from fastapi.testclient import TestClient
-
-    return app, TestClient(app)
+    stack = contextlib.ExitStack()
+    _open_clients.append(stack)
+    client = stack.enter_context(TestClient(app))  # démarre le lifespan
+    return app, client
 
 
 def wait_until(predicate, timeout=2.0):
