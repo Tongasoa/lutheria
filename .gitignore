@@ -1,0 +1,29 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Environnement & secrets
+.env
+*.pem
+*.key
+deploy/certs/
+
+# Modèles ML (téléchargés ou convertis, jamais commités)
+models/
+*.bin
+*.onnx
+*.safetensors
+
+# Audio de test généré
+*.wav
+!tests/fixtures/audio/*.wav.tmp
+
+# OS
+.DS_Store
+
+# Actifs de configuration d'agent hors périmètre de l'app
+skills/

@@ -1,0 +1,16 @@
+# --- Serveur ---
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+pydantic-settings>=2.3
+numpy>=1.26
+
+# --- ML (lourds, installés tels quels en dev CPU et prod GPU) ---
+# Ajoutés à leur étape respective : onnxruntime (VAD), faster-whisper (ASR),
+# ctranslate2 + sentencepiece (NLLB)
+onnxruntime>=1.17
+
+# --- Tests ---
+pytest>=8.2
+pytest-asyncio>=0.23
+httpx2>=0.28
