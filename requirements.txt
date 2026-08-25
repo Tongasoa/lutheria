@@ -9,6 +9,8 @@ numpy>=1.26
 # silero-vad entraîne torch comme dépendance (utilisé CPU-only pour le VAD)
 silero-vad>=6.2
 onnxruntime>=1.17
+# ASR : runtime CTranslate2 (le modèle converti est fourni par scripts/convert_ct2.sh)
+faster-whisper>=1.2
 
 # --- Tests ---
 pytest>=8.2

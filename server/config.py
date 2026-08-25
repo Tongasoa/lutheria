@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     mic_token: str
 
     asr_model: str = "Tongasoa/whisper-malagasy-medium-full-v2"
+    asr_language: str = "mg"
+    asr_device: str = "cpu"  # "cuda" sur EC2 GPU
+    asr_compute_type: str = "int8"  # "float16" recommandé sur GPU
     mt_model: str = "facebook/nllb-200-distilled-600M"
     mt_src_lang: str = "mlg_Latn"
     mt_tgt_lang: str = "fra_Latn"
