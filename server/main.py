@@ -15,6 +15,7 @@ from server.asr import build_asr
 from server.auth import is_valid_mic_token
 from server.broadcast import BroadcastHub
 from server.config import Settings
+from server.mt import build_mt
 from server.vad import Segment, VADSegmenter
 
 logger = logging.getLogger("lutheria")
@@ -41,6 +42,7 @@ def create_app(
     settings: Settings | None = None,
     vad_factory=build_segmenter,
     asr_factory=build_asr,
+    mt_factory=build_mt,
 ) -> FastAPI:
     settings = settings or Settings()
 
@@ -58,6 +60,7 @@ def create_app(
     app.state.segment_queue: asyncio.Queue[Segment] | None = None
     app.state.segmenter: VADSegmenter | None = None
     app.state.asr = None
+    app.state.mt = None
     app.state._worker_task: asyncio.Task | None = None
 
     async def enqueue_segment(segment: Segment) -> None:
@@ -69,7 +72,7 @@ def create_app(
         q.put_nowait(segment)
 
     async def pipeline_worker() -> None:
-        """Consomme les segments VAD : ASR puis diffusion du texte malgache."""
+        """Consomme les segments VAD : ASR -> diffusion `partial`, MT -> `final`."""
         segment_id = 0
         while True:
             segment = await app.state.segment_queue.get()
@@ -80,12 +83,31 @@ def create_app(
                 )
                 if not transcription.text.strip():
                     continue  # segment vide (faux positif VAD) : rien à diffuser
+                ts = time.time()
+                text_mg = transcription.text
                 await hub.publish(
                     {
                         "id": segment_id,
-                        "ts": time.time(),
+                        "ts": ts,
                         "state": "partial",
-                        "text_mg": transcription.text,
+                        "text_mg": text_mg,
+                    }
+                )
+                try:
+                    text_fr = await asyncio.to_thread(app.state.mt.translate, text_mg)
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    # la traduction échoue : la ligne reste en `partial`
+                    logger.exception("échec MT sur le segment %d", segment_id)
+                    continue
+                await hub.publish(
+                    {
+                        "id": segment_id,
+                        "ts": ts,
+                        "state": "final",
+                        "text_mg": text_mg,
+                        "text_fr": text_fr,
                     }
                 )
             except asyncio.CancelledError:
@@ -101,6 +123,7 @@ def create_app(
             app.state.segment_queue = asyncio.Queue(maxsize=SEGMENT_QUEUE_MAXSIZE)
             app.state.segmenter = vad_factory(settings, get_silero_probas())
             app.state.asr = asr_factory(settings)
+            app.state.mt = mt_factory(settings)
             app.state._worker_task = asyncio.create_task(pipeline_worker())
 
     @app.websocket("/ws/mic")
