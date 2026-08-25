@@ -6,11 +6,12 @@ pydantic-settings>=2.3
 numpy>=1.26
 
 # --- ML (lourds, installés tels quels en dev CPU et prod GPU) ---
-# Ajoutés à leur étape respective : onnxruntime (VAD), faster-whisper (ASR),
-# ctranslate2 + sentencepiece (NLLB)
+# silero-vad entraîne torch comme dépendance (utilisé CPU-only pour le VAD)
+silero-vad>=6.2
 onnxruntime>=1.17
 
 # --- Tests ---
 pytest>=8.2
 pytest-asyncio>=0.23
 httpx2>=0.28
+soundfile>=0.12  # lecture des fixtures audio des tests d'intégration
