@@ -11,7 +11,7 @@ silero-vad>=6.2
 onnxruntime>=1.17
 # ASR : runtime CTranslate2 (le modèle converti est fourni par scripts/convert_ct2.sh)
 faster-whisper>=1.2
-# MT : NLLB-200 via transformers (+ torch transitif, CPU dev / CUDA prod)
+# MT : tokenizer NLLB via transformers (le moteur tourne sous CTranslate2)
 transformers>=4.40
 sentencepiece>=0.2
 
