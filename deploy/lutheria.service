@@ -19,7 +19,7 @@ User=ubuntu
 Group=ubuntu
 WorkingDirectory=/home/ubuntu/lutheria
 
-# Configuration/secrets (droits 600 requis)
+# Configuration/secrets (droits 600 requis, strict : pas de "# commentaire" inline — voir ADR 0007)
 EnvironmentFile=/etc/lutheria.env
 
 ExecStart=/home/ubuntu/lutheria/.venv/bin/uvicorn server.main:create_app \

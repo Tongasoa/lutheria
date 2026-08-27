@@ -34,7 +34,7 @@ même `id`). Détails des choix : [docs/adr/](docs/adr/).
 ## Démarrage rapide (dev local, Mac OK)
 
 ```bash
-python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt
+python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt  # 3.11–3.13 OK (prod 26.04 en 3.13, voir ADR 0007)
 cp .env.example .env                    # renseigner LUTHERIA_MIC_TOKEN
 ./scripts/convert_ct2.sh asr            # une fois (~3 Go téléchargés)
 ./scripts/convert_ct2.sh mt             # une fois (~2,5 Go)
@@ -43,7 +43,7 @@ cp .env.example .env                    # renseigner LUTHERIA_MIC_TOKEN
 ```
 
 Sur Mac sans GPU : tout tourne en CPU int8 — suffisant pour développer ; le
-temps réel exige la T4 (déploiement).
+temps réel exige la T4 (déploiement, voir `deploy/DEPLOYMENT.md` + ADR 0007).
 
 ## Tests
 
