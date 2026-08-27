@@ -50,17 +50,22 @@ async def run(server: str, token: str, pcm: bytes, insecure: bool) -> None:
 
     import websockets
 
-    ctx = None
-    if server.startswith("wss") and insecure:
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
+    # websockets >=13 lève ValueError si ssl=None est passé explicitement sur wss://.
+    # On omet le kwarg quand aucun contexte n'est nécessaire (ws:// ou wss vérifié).
+    kwargs: dict = {}
+    if server.startswith("wss"):
+        if insecure:
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            kwargs["ssl"] = ctx
+        # sinon omission -> websockets crée un contexte par défaut (vérif Let’s Encrypt)
 
     url_mic = f"{server}/ws/mic?token={token}"
     url_listen = f"{server}/ws/listen"
 
-    async with websockets.connect(url_listen, ssl=ctx) as listener:
-        async with websockets.connect(url_mic, ssl=ctx, max_size=2**20) as mic:
+    async with websockets.connect(url_listen, **kwargs) as listener:
+        async with websockets.connect(url_mic, **kwargs, max_size=2**20) as mic:
             listen_task = asyncio.create_task(drain(listener))
             chunk = 3200  # 100 ms
             for i in range(0, len(pcm), chunk):
