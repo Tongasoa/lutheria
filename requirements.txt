@@ -18,5 +18,5 @@ sentencepiece>=0.2
 # --- Tests ---
 pytest>=8.2
 pytest-asyncio>=0.23
-httpx2>=0.28
+httpx>=0.28
 soundfile>=0.12  # lecture des fixtures audio des tests d'intégration
