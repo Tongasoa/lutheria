@@ -106,7 +106,43 @@ Attendu : lignes 🟡 (partial mg) puis 🟢 (final fr) en ~2 s après chaque ph
 
 Un vrai domaine plus tard = même procédure (ADR 0005).
 
-## 9. Dépannage prod (ajouts 2026-08-28, voir ADR 0007)
+## 9. Changer de modèle MT (et revenir en arrière)
+
+Le modèle MT est un simple swap par variable d'environnement : ni code, ni
+redémarrage d'instance. `deploy/set_mt_model.sh` réécrit proprement les variables
+MT dans `/etc/lutheria.env` (sauvegarde avant, refus d'un modèle absent du
+disque, contrôle du piège « `# commentaire` inline » d'ADR 0007).
+
+Convertir d'abord le nouveau modèle (veuf l'activée : `convert_ct2.sh` cherche
+`ct2-transformers-converter` dans le `PATH`) :
+
+```bash
+sudo -u ubuntu bash -lc 'source ~/lutheria/.venv/bin/activate && cd ~/lutheria \
+  && ./scripts/convert_ct2.sh mt francis47/nllb_mg_v1 models/mt-nllb-v1'
+```
+
+Basculer, appliquer, puis vérifier :
+
+```bash
+sudo ./deploy/set_mt_model.sh models/mt-nllb-v1 francis47/nllb_mg_v1
+sudo systemctl restart lutheria && journalctl -u lutheria -f
+# absence de "échec MT sur le segment" dans les logs
+```
+
+Retour à l'original (l'ancien modèle n'est jamais écrasé) :
+
+```bash
+sudo ./deploy/set_mt_model.sh models/mt-nllb facebook/nllb-200-distilled-600M
+# ou, pour revenir à l'état précédent exact :
+sudo ./deploy/set_mt_model.sh --rollback
+```
+
+Un code langue ou un tokenizer incohérent fait désormais échouer le
+chargement bruyamment (`server/mt.py`) : si le français disparaît après une
+bascule, chercher le traceback dans `journalctl -u lutheria` avant de soupçonner
+le modèle.
+
+## 10. Dépannage prod (ajouts 2026-08-28, voir ADR 0007)
 
 | Symptôme | Cause | Commande |
 |---|---|---|
@@ -125,5 +161,6 @@ Un vrai domaine plus tard = même procédure (ADR 0005).
 | Arrêter (facturation stoppée sauf disque) | `sudo shutdown now` ou console AWS |
 | Redémarrer | démarrer l'instance ; IP change si pas d'Elastic IP → mettre à jour DuckDNS |
 | Nouveau fine-tuning ASR | push HF → `convert_ct2.sh asr <repo>` → `systemctl restart lutheria` |
+| Changer de modèle MT | `deploy/set_mt_model.sh <modèle> <tokenizer>` → restart (voir §9) |
 | Logs serveur | `journalctl -u lutheria -n 200` |
 | Mise à jour code | `git pull && systemctl restart lutheria` |
