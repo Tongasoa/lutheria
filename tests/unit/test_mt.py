@@ -75,3 +75,48 @@ def test_chargement_paresseux(monkeypatch):
     monkeypatch.setattr(mt_module, "load_tokenizer", lambda p, s: FakeTokenizer())
     engine.ensure_loaded()
     assert calls == {"path": "fake-model", "device": "cpu", "compute_type": "int8"}
+
+
+class CodeRecordingTokenizer:
+    """Tokenizer qui ne connaît que les codes de langue qu'on lui a passé.
+
+    Représente un dépôt sans `tokenizer.json` : les codes FLORES-200 sont alors
+    absents du vocabulaire et convert_tokens_to_ids rend l'id de <unk>.
+    """
+
+    unk_token_id = 3
+
+    def __init__(self, known):
+        self.known = known
+
+    def convert_tokens_to_ids(self, token):
+        if isinstance(token, list):
+            return [self.convert_tokens_to_ids(t) for t in token]
+        return self.known.get(token, self.unk_token_id)
+
+
+def test_tokenizer_valide_est_charge_en_un_seul_essai(monkeypatch):
+    """Un dépôt qui publie ses codes (tokenizer.json) ne doit être chargé qu'une fois."""
+    import server.mt as mt_module
+    attempts = []
+
+    def fake_from_pretrained(path, src_lang=None):
+        attempts.append(path)
+        return CodeRecordingTokenizer({"plt_Latn": 256119})
+
+    monkeypatch.setattr(mt_module, "_from_pretrained", fake_from_pretrained)
+
+    tokenizer = mt_module.load_tokenizer("repo-officiel", "plt_Latn")
+
+    assert attempts == ["repo-officiel"]
+    assert tokenizer.convert_tokens_to_ids("plt_Latn") == 256119
+
+
+def test_tokenizer_irreparable_leve_une_erreur_explicite(monkeypatch):
+    """Ni le dépôt ni la liste FLORES-200 ne connaissent le code : on refuse de tourner."""
+    import server.mt as mt_module
+    monkeypatch.setattr(mt_module, "_from_pretrained",
+                        lambda p, src_lang=None: CodeRecordingTokenizer({}))
+
+    with pytest.raises(RuntimeError, match="plt_Latn"):
+        mt_module.load_tokenizer("repo-inconnu", "plt_Latn")

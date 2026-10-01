@@ -22,11 +22,41 @@ def new_translator(model_path: str, device: str, compute_type: str):
     return ctranslate2.Translator(model_path, device=device, compute_type=compute_type)
 
 
-def load_tokenizer(model_path: str, src_lang: str):
-    """Charge le tokenizer sentencepiece HF (point de monkeypatch pour les tests)."""
+def _from_pretrained(model_path: str, **kwargs):
+    """Appelle AutoTokenizer (point de monkeypatch pour les tests)."""
     from transformers import AutoTokenizer
 
-    return AutoTokenizer.from_pretrained(model_path, src_lang=src_lang)
+    return AutoTokenizer.from_pretrained(model_path, **kwargs)
+
+
+def _resolves(tokenizer, code: str) -> bool:
+    return tokenizer.convert_tokens_to_ids(code) != tokenizer.unk_token_id
+
+
+def load_tokenizer(model_path: str, src_lang: str):
+    """Charge le tokenizer sentencepiece HF, et refuse un code langue non résolu.
+
+    Les codes de langue de NLLB sont des `added_tokens` du `tokenizer.json` que
+    publie Meta. Les fine-tunes communautaires fournissent souvent le seul
+    `sentencepiece.bpe.model` : les codes résolvent alors vers <unk> — y compris
+    le préfixe cible, donc le modèle ne reçoit plus l'ordre de produire du
+    français — sans qu'aucune erreur ne soit levée.
+
+    On ne tente surtout pas de deviner les identifiants manquants à partir de
+    FAIRSEQ_LANGUAGE_CODES : un id reconstruit à la bonne place dans le
+    vocabulaire n'est pas forcément celui de l'entraînement, et le modèle
+    produit alors du texte plausible mais faux (mesuré sur
+    francis47/nllb_mg_v3_3ep, ADR 0008). Mieux vaut un refus explicite.
+    """
+    tokenizer = _from_pretrained(model_path, src_lang=src_lang)
+    if not _resolves(tokenizer, src_lang):
+        raise RuntimeError(
+            f"code langue source {src_lang!r} inconnu du tokenizer {model_path} : il "
+            f"résoudrait vers <unk>, ce qui dégraderait silencieusement la traduction. "
+            f"Utiliser un dépôt publiant un tokenizer.json (modèles Meta), ou vérifier "
+            f"le code FLORES-200 — malgache : plt_Latn, et non mlg_Latn (ISO 639-3)."
+        )
+    return tokenizer
 
 
 class NLLBEngine:
