@@ -1,0 +1,23 @@
+# Sous-ensemble de requirements.txt necessaire aux tests unitaires en CI.
+#
+# Regle : server/ n'importe aucun moteur ML au niveau module. ctranslate2
+# (server/mt.py), faster_whisper (server/asr.py) et torch/silero
+# (server/vad_model.py) sont importes dans les fabriques, a la premiere
+# utilisation : aucun test unitaire ne charge donc de modele reel, et la CI
+# evite plusieurs Go de telechargement (torch, onnxruntime, ctranslate2).
+#
+# soundfile est requis malgre la marque `integration` : pytest collecte
+# (donc importe) tous les modules de test avant de les deselectionner.
+#
+# Toute dependance introduite par un test unitaire se declare ici.
+
+numpy>=1.26
+fastapi>=0.115
+httpx>=0.28
+pydantic>=2.7
+pydantic-settings>=2.3
+pytest>=8.2
+pytest-asyncio>=0.23
+soundfile>=0.12
+# Utilisé par le garde-fou des codes de langue MT (test_config) ; pas de torch requis.
+transformers>=4.40

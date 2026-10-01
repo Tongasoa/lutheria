@@ -39,7 +39,7 @@ class NLLBEngine:
     def __init__(
         self,
         model_path: str,
-        src_lang: str = "mlg_Latn",
+        src_lang: str = "plt_Latn",
         tgt_lang: str = "fra_Latn",
         device: str = "cpu",
         compute_type: str = "int8",

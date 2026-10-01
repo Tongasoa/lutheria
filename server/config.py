@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     asr_compute_type: str = "int8"  # "float16" recommandé sur GPU
     mt_model: str = "models/mt-nllb"  # répertoire converti CTranslate2 (scripts/convert_ct2.sh mt)
     mt_tokenizer_model: str = "facebook/nllb-200-distilled-600M"  # repo HF source du tokenizer
-    mt_src_lang: str = "mlg_Latn"
+    mt_src_lang: str = "plt_Latn"
     mt_tgt_lang: str = "fra_Latn"
     mt_device: str = "cpu"  # "cuda" sur EC2 GPU
     mt_compute_type: str = "int8"  # "float16" recommandé sur GPU

@@ -18,7 +18,7 @@ Pipeline en cascade, une connexion WebSocket entrante (`/ws/mic`, PCM brut
    (silence ≥ ~400 ms ⇒ fin de segment, voir ADR 0004).
 2. **ASR** — Whisper fine-tuné malgache via faster-whisper/CTranslate2 (GPU en
    prod, CPU en dev), transcription malgache.
-3. **MT** — NLLB-200 distilled-600M, `mlg_Latn → fra_Latn`.
+3. **MT** — NLLB-200 distilled-600M, `plt_Latn → fra_Latn`.
 
 Les résultats sont diffusés (broadcast) à tous les clients de `/ws/listen`.
 Deux messages par segment partagent le même `id` :

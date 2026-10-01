@@ -54,7 +54,11 @@ def create_app(
         from server.vad_model import get_silero_probas
 
         app.state.segment_queue = asyncio.Queue(maxsize=SEGMENT_QUEUE_MAXSIZE)
-        app.state.segmenter = vad_factory(settings, get_silero_probas())
+        # get_silero_probas() n'est évalué que pour la fabrique par défaut : une
+        # fabrique injectée fournit son propre VAD et ne doit pas charger le vrai
+        # modèle (intention documentée dans server/vad_model.py).
+        proba_fn = get_silero_probas() if vad_factory is build_segmenter else None
+        app.state.segmenter = vad_factory(settings, proba_fn)
         app.state.asr = asr_factory(settings)
         app.state.mt = mt_factory(settings)
         task = asyncio.create_task(pipeline_worker())
