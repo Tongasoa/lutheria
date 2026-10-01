@@ -58,26 +58,45 @@ gated publics.
 Règle de décision, **relative** et fixée avant mesure :
 `déployer C si chrF++(C) > chrF++(B) et p95(C) ≤ 1,25 × p95(B)`.
 
-### 4. `francis47/nllb_mg_v3_3ep` : rejeté
+### 4. `francis47/nllb_mg_v1` et `nllb_mg_v3_3ep` : rejetés
 
 Résultats sur 300 paires de devtest, CPU int8, latence par phrase :
 
-| Cellule | src_lang | chrF++ | BLEU | p50 (ms) | p95 (ms) |
-|---|---|---|---|---|---|
-| A — 600M avant correctif | `mlg_Latn` | 41,962 | 18,877 | 793 | 1 679 |
-| B — 600M prod actuelle | `plt_Latn` | **48,675** | **25,747** | 630 | 1 090 |
-| C — `francis47` 3ep | `plt_Latn` | 31,589 | 8,408 | 650 | 3 363 |
+| Cellule | src_lang | chrF++ | BLEU | p50 (ms) | p95 (ms) | minuscule initiale |
+|---|---|---|---|---|---|---|
+| A — 600M avant correctif | `mlg_Latn` | 41,962 | 18,877 | 793 | 1 679 | — |
+| B — 600M prod actuelle | `plt_Latn` | **48,675** | **25,747** | 630 | 1 090 | 0 % |
+| C — `nllb_mg_v1` | `plt_Latn` | 44,713 | 18,647 | 668 | 1 126 | 95 % |
+| D — `nllb_mg_v3_3ep` | `plt_Latn` | 31,589 | 8,408 | 650 | 3 363 | 93 % |
 
-La cellule C échoue les **deux** critères (−17,1 chrF++, p95 ×3,08).
+**`nllb_mg_v1`** est techniquement sain, contrairement à la v3 : `vocab_size`
+256 206 identique à l'officiel, base déclarée
+(`facebook/nllb-200-distilled-600M`), et un `tokenizer.json` dont le vocabulaire
+et la segmentation sont **identiques** au modèle Meta (`plt_Latn` = 256 119,
+`fra_Latn` = 256 057). Rien à deviner, comparaison propre. Il perd malgré tout
+la règle sur la qualité : **−3,96 chrF++** et **−7,1 BLEU**. La latence passe
+(x1,03), mais ce n'est pas le critère limitant.
 
-Motif technique : le dépôt ne publie pas de `tokenizer.json`, donc `plt_Latn`
-**et** `fra_Latn` résolvent vers `<unk>` — le modèle ne reçoit ni sa langue
-source ni l'ordre de produire du français. La reconstruction des identifiants a
-été tentée (`plt_Latn`=268205, `fra_Latn`=268143 pour un `vocab_size` de
-268291, donc dans la plage libre de l'embedding) et le moteur tourne, mais la
-sortie est du charabia plausible (« ne vous inquiétez pas d'aller à
-l'anxiété »). S'y ajoutent l'absence de licence déclarée, l'absence de model
-card, de métriques et de base de fine-tuning documentée.
+Il produit par ailleurs une **minuscule initiale dans 95 % des cas** (officiel :
+0 %) — défaut visible par les lecteurs. Ce comportement, cumulé à la baisse sur
+Flores, est cohérent avec un corpus d'entraînement en minuscules et de nature
+conversationnelle : Flores mesure de l'écrit de type Wikipédia, et le métrique
+est alors probablement le mauvais juge. Lever ce doute demanderait des
+références en langue-domain, écartées ici.
+
+**`nllb_mg_v3_3ep`** échoue plus nettement et pour une raison technique : le dépôt
+ne publie pas de `tokenizer.json`, donc `plt_Latn` **et** `fra_Latn` résolvent
+vers `<unk>` — le modèle ne reçoit ni sa langue source ni l'ordre de produire du
+français. La reconstruction des identifiants a été tentée (`plt_Latn`=268205,
+`fra_Latn`=268143 pour un `vocab_size` de 268291, donc dans la plage libre de
+l'embedding) et le moteur tourne, mais la sortie est du texte plausible et faux
+(« ne vous inquiétez pas d'aller à l'anxiété »). S'y ajoutent l'absence de
+licence déclarée, de model card, de métriques et de base de fine-tuning
+documentée.
+
+Les deux dépôts sans model card ni licence déclarée restent exclusifs de la
+prod : la base NLLB-200 est CC-BY-NC et « non destiné au déploiement en
+production ».
 
 ### 5. NLLB-200 distilled-600M conservé
 
@@ -90,8 +109,10 @@ card, de métriques et de base de fine-tuning documentée.
 - (+) Toute évolution du MT se mesure avant déploiement, avec une règle écrite
   d'avance ; plus de décision fondée sur « ça a l'air bien ».
 - (−) Flores-200 mesure du **texte écrit** (articles Wikipédia) : il classe des
-  modèles, il ne prédit pas la qualité en oral malgache. La perception des
-  lecteurs reste à valider au navigateur.
+  modèles, il ne prédit pas la qualité en oral malgache. C'est probablement la
+  raison pour laquelle `nllb_mg_v1`, vraisemblablement entraîné sur de l'oral en
+  minuscules, sort en dessous. La perception des lecteurs reste à valider au
+  navigateur, et aucun jeu en langue-domain n'existe pour trancher.
 - (−) Un dépôt tiers sans `tokenizer.json` est désormais rejeté : c'est
   délibéré, mais cela ferme l'accès à la plupart des fine-tunes communautaires.
   Les modèles Meta restent interchangeables par variable d'environnement.
