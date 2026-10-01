@@ -20,3 +20,4 @@ pytest>=8.2
 pytest-asyncio>=0.23
 httpx>=0.28
 soundfile>=0.12  # lecture des fixtures audio des tests d'intégration
+sacrebleu>=2.4  # chrF++/BLEU pour scripts/eval_mt.py
