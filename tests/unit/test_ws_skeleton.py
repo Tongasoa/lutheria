@@ -5,12 +5,18 @@ from fastapi.testclient import TestClient
 
 from server.config import Settings
 from server.main import create_app
+from server.vad import VADSegmenter
+
+
+def _inert_vad_factory(settings, proba_fn=None):
+    """VAD qui ne déclenche jamais : ces tests couvrent auth/frames, pas la segmentation."""
+    return VADSegmenter(proba_fn=lambda w: 0.0)
 
 
 @pytest.fixture
 def app():
     settings = Settings(mic_token="tok", _env_file=None)
-    return create_app(settings)
+    return create_app(settings, vad_factory=_inert_vad_factory)
 
 
 @pytest.fixture
