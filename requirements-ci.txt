@@ -19,3 +19,5 @@ pydantic-settings>=2.3
 pytest>=8.2
 pytest-asyncio>=0.23
 soundfile>=0.12
+# Utilisé par le garde-fou des codes de langue MT (test_config) ; pas de torch requis.
+transformers>=4.40

@@ -22,7 +22,7 @@ amélioré : `Tongasoa/whisper-malagasy-medium-full-v2`.
 - Fallback dev CPU : même code, `device=cpu`, `compute_type=int8`.
 
 ### MT (étape 4)
-- Modèle : **NLLB-200 distilled-600M** (`mlg_Latn → fra_Latn`) plutôt qu'OPUS-MT :
+- Modèle : **NLLB-200 distilled-600M** (`plt_Latn → fra_Latn`) plutôt qu'OPUS-MT :
   couverture explicite du malgache, meilleure qualité sur langue à faibles
   ressources, taille compatible GPU partagé (~1,2 Go en int8).
 - Runtime : CTranslate2 int8, beam 1-2.
